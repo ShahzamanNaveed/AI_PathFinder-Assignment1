@@ -115,24 +115,65 @@ def bfs(canvas):
 
     return None  
 
-# ------------------ Main GUI Function ------------------
+# ------------------ DFS Algorithm ------------------
+def dfs(canvas):
+    stack = []
+    stack.append([START])
+    explored = set()
+    
+    while stack:
+        path = stack.pop()
+        current = path[-1]
+        explored.add(current)
+        frontier = set(p[-1] for p in stack)
+        
+        draw_grid(canvas, frontier=frontier, explored=explored)
+        canvas.update()
+        time.sleep(0.2)
 
+        if current == TARGET:
+            draw_grid(canvas, path=set(path))
+            canvas.update()
+            return path
+        row, col = current
+        neighbors = [
+            (row-1, col), (row, col+1), (row+1, col),
+            (row+1, col+1), (row, col-1), (row-1, col-1)
+        ]
 
-def main():
-    root = tk.Tk()
-    root.title("AI Pathfinder Grid")
+        for r, c in neighbors:
+            if 0 <= r < ROWS and 0 <= c < COLS:
+                if grid[r][c] == 0 and (r, c) not in explored and (r, c) not in [p[-1] for p in stack]:
+                    stack.append(path + [(r, c)])
+    return None
 
-    canvas = tk.Canvas(root, width=COLS*CELL_SIZE, height=ROWS*CELL_SIZE)
-    canvas.pack()
+# ------------------ Run Selected Algorithm ------------------
+def run_algorithm():
+    algo = algo_var.get()  
+    if algo == "BFS":
+        bfs(canvas)
+    elif algo == "DFS":
+        dfs(canvas)
 
-    draw_grid(canvas)
-    root.update()
+# ------------------ Main GUI ------------------
+root = tk.Tk()
+root.title("AI Pathfinder")
 
-    # Run BFS and animate
-    bfs(canvas)
+# Canvas for grid
+canvas = tk.Canvas(root, width=COLS*CELL_SIZE, height=ROWS*CELL_SIZE)
+canvas.pack()
 
-    root.mainloop()
+# Dropdown menu to select algorithm
+algo_var = tk.StringVar(root)
+algo_var.set("BFS") 
+algo_menu = tk.OptionMenu(root, algo_var, "BFS", "DFS")
+algo_menu.pack(pady=10)
 
-# ------------------ Run Program ------------------
-if __name__ == "__main__":
-    main()
+# Button to run selected algorithm
+run_button = tk.Button(root, text="Run Search", command=run_algorithm)
+run_button.pack(pady=5)
+
+# Draw initial grid
+draw_grid(canvas)
+
+root.mainloop()
