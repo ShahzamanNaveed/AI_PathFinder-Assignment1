@@ -1,6 +1,9 @@
 import tkinter as tk
 import time
 from collections import deque
+# For UCS
+import heapq
+
 
 # Grid size
 ROWS = 10
@@ -13,7 +16,7 @@ WALL_COLOR = "black"
 START_COLOR = "green"
 TARGET_COLOR = "red"
 FRONTIER_COLOR = "lightblue"
-EXPLORED_COLOR = "lightblue"
+EXPLORED_COLOR = "blue"
 PATH_COLOR = "purple"
 
 # Sample static grid (0 = empty, 1 = wall)
@@ -31,7 +34,7 @@ grid = [
 ]
 
 START = (0, 0)
-TARGET = (9, 9)
+TARGET = (3, 7)
 
 def draw_grid(canvas, frontier=set(), explored=set(), path=set()):
     canvas.delete("all")  # clear previous drawings
@@ -147,13 +150,113 @@ def dfs(canvas):
                     stack.append(path + [(r, c)])
     return None
 
+#------------------UCS----------------------------
+
+def ucs(canvas):
+    pq = []  # priority queue
+    heapq.heappush(pq, (0, [START]))  # (cost, path)
+    explored = set()
+
+    while pq:
+        cost, path = heapq.heappop(pq)
+        current = path[-1]
+
+        if current in explored:
+            continue
+
+        explored.add(current)
+        frontier = set(p[-1] for _, p in pq)
+
+        draw_grid(canvas, frontier=frontier, explored=explored)
+        canvas.update()
+        time.sleep(0.2)
+
+        if current == TARGET:
+            draw_grid(canvas, path=set(path))
+            canvas.update()
+            return path
+
+        row, col = current
+
+        neighbors = [
+            (row-1, col, 1),       # Up
+            (row, col+1, 1),       # Right
+            (row+1, col, 1),       # Bottom
+            (row+1, col+1, 2),   # Bottom-Right (Diagonal)
+            (row, col-1, 1),       # Left
+            (row-1, col-1, 2)    # Top-Left (Diagonal)
+        ]
+
+        for r, c, move_cost in neighbors:
+            if 0 <= r < ROWS and 0 <= c < COLS:
+                if grid[r][c] == 0 and (r, c) not in explored:
+                    new_cost = cost + move_cost
+                    heapq.heappush(pq, (new_cost, path + [(r, c)]))
+
+    return None
+
+#---------------------DLS------------
+
+def dls(canvas, limit=10):
+    # Stack stores: (current_node, path_to_node, depth)
+    stack = [(START, [START], 0)]
+
+    while stack:
+        current, path, depth = stack.pop()
+
+        # --- Visualization ---
+        frontier_nodes = set(node for node, _, _ in stack)
+        explored_nodes = set(path)
+
+        draw_grid(canvas, frontier=frontier_nodes, explored=explored_nodes)
+        canvas.update()
+        time.sleep(0.2)
+
+        # --- Goal Test ---
+        if current == TARGET:
+            draw_grid(canvas, path=set(path))
+            canvas.update()
+            return path
+
+        # --- Depth Limit Check ---
+        if depth == limit:
+            continue  # do NOT expand further
+
+        row, col = current
+
+        # Strict clockwise order (NO top-right, NO bottom-left)
+        neighbors = [
+            (row-1, col),      # Up
+            (row, col+1),      # Right
+            (row+1, col),      # Bottom
+            (row+1, col+1),    # Bottom-Right
+            (row, col-1),      # Left
+            (row-1, col-1)     # Top-Left
+        ]
+
+        # Reverse for correct DFS expansion order
+        for r, c in reversed(neighbors):
+            if 0 <= r < ROWS and 0 <= c < COLS:
+                if grid[r][c] == 0 and (r, c) not in path:
+                    stack.append(((r, c), path + [(r, c)], depth + 1))
+
+    return None
+
+
 # ------------------ Run Selected Algorithm ------------------
 def run_algorithm():
-    algo = algo_var.get()  
+    algo = algo_var.get()
+    draw_grid(canvas)
+
     if algo == "BFS":
         bfs(canvas)
     elif algo == "DFS":
         dfs(canvas)
+    elif algo == "UCS":
+        ucs(canvas)
+    elif algo == "DLS":
+        dls(canvas, limit=8) 
+
 
 # ------------------ Main GUI ------------------
 root = tk.Tk()
@@ -166,7 +269,9 @@ canvas.pack()
 # Dropdown menu to select algorithm
 algo_var = tk.StringVar(root)
 algo_var.set("BFS") 
-algo_menu = tk.OptionMenu(root, algo_var, "BFS", "DFS")
+algo_menu = tk.OptionMenu(root, algo_var, "BFS", "DFS", "UCS", "DLS")
+
+
 algo_menu.pack(pady=10)
 
 # Button to run selected algorithm
