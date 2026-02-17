@@ -3,7 +3,9 @@ import time
 from collections import deque
 import heapq
 
+# ──────────────────────────────────────────
 #  CONFIGURATION
+# ──────────────────────────────────────────
 ROWS       = 10
 COLS       = 10
 CELL_SIZE  = 40
@@ -12,8 +14,9 @@ STEP_DELAY = 0.25   # seconds between animation frames
 # Diagonal move cost (√2) for UCS
 DIAG_COST = 1.414
 
-
+# ──────────────────────────────────────────
 #  COLORS
+# ──────────────────────────────────────────
 COLOR = {
     "empty"       : "#F0F0F0",
     "wall"        : "#2C2C2C",
@@ -23,15 +26,16 @@ COLOR = {
     "explored"    : "#2980B9",
     "path"        : "#8E44AD",
     # Bidirectional-specific
-    "fwd_frontier": "#AED6F1",   
-    "bwd_frontier": "#FADBD8",  
-    "fwd_explored": "#2980B9",   
-    "bwd_explored": "#C0392B",   
-    "meet"        : "#F39C12",   
+    "fwd_frontier": "#AED6F1",   # light blue  – forward  frontier
+    "bwd_frontier": "#FADBD8",   # light red   – backward frontier
+    "fwd_explored": "#2980B9",   # blue        – forward  explored
+    "bwd_explored": "#C0392B",   # dark red    – backward explored
+    "meet"        : "#F39C12",   # orange      – meeting node
 }
 
+# ──────────────────────────────────────────
 #  STATIC GRID  (0 = empty, 1 = wall)
-
+# ──────────────────────────────────────────
 grid = [
     [0,0,0,0,0,0,0,0,0,0],
     [0,0,1,0,0,0,0,0,0,0],
@@ -48,7 +52,10 @@ grid = [
 START  = (0, 0)
 TARGET = (9, 9)
 
-
+# ──────────────────────────────────────────
+#  MOVEMENT ORDER  (6 directions as specified)
+#  Up, Right, Bottom, Bottom-Right, Left, Top-Left
+# ──────────────────────────────────────────
 DIRECTIONS = [
     (-1,  0),   # Up
     ( 0,  1),   # Right
@@ -61,7 +68,9 @@ DIRECTIONS = [
 DIAG_PAIRS = {(1, 1), (-1, -1)}
 
 
+# ──────────────────────────────────────────
 #  HELPERS
+# ──────────────────────────────────────────
 
 def get_neighbors(row, col):
     """Yield valid (r, c, cost) neighbours in the required direction order."""
@@ -72,7 +81,9 @@ def get_neighbors(row, col):
             yield r, c, cost
 
 
+# ──────────────────────────────────────────
 #  DRAWING
+# ──────────────────────────────────────────
 
 def draw_grid(canvas, frontier=frozenset(), explored=frozenset(),
               path=frozenset(), status=""):
@@ -129,7 +140,11 @@ def draw_grid(canvas, frontier=frozenset(), explored=frozenset(),
     )
 
 
+
+
+# ──────────────────────────────────────────
 #  DRAWING – Bidirectional variant
+# ──────────────────────────────────────────
 
 def draw_grid_bidir(canvas,
                     fwd_frontier=frozenset(), bwd_frontier=frozenset(),
@@ -209,12 +224,12 @@ def bfs(canvas):
         draw_grid(canvas,
                   frontier=in_queue.copy(),
                   explored=explored,
-                  status=f"BFS - exploring {current}")
+                  status=f"BFS – exploring {current}")
         canvas.update()
         time.sleep(STEP_DELAY)
 
         if current == TARGET:
-            draw_grid(canvas, path=set(path), status="BFS - Path Found! ✓")
+            draw_grid(canvas, path=set(path), status="BFS – Path Found! ✓")
             canvas.update()
             return path
 
@@ -224,7 +239,7 @@ def bfs(canvas):
                 queue.append(path + [(r, c)])
                 in_queue.add((r, c))
 
-    draw_grid(canvas, status="BFS - No path found ✗")
+    draw_grid(canvas, status="BFS – No path found ✗")
     canvas.update()
     return None
 
@@ -275,6 +290,10 @@ def dfs(canvas):
 # ──────────────────────────────────────────
 
 def dls(canvas, limit):
+    """
+    Depth-Limited Search: behaves like DFS but will NOT expand any node
+    whose depth exceeds `limit`.  Each stack entry is (path, depth).
+    """
     stack    = [([START], 0)]   # (path, depth)
     explored = set()
     in_stack = {START}
@@ -322,7 +341,13 @@ def dls(canvas, limit):
 # ──────────────────────────────────────────
 
 def iddfs(canvas):
-
+    """
+    Iterative Deepening DFS:
+      - Runs a depth-limited DFS starting at limit = 0.
+      - If the target is not found, clears the grid and retries with limit + 1.
+      - Repeats until the target is found or the grid is fully exhausted.
+    Each iteration is fully animated so the viewer can watch each deepening round.
+    """
     max_possible = ROWS * COLS   # absolute upper bound on any useful path length
 
     for limit in range(max_possible + 1):
@@ -384,6 +409,17 @@ def iddfs(canvas):
 # ──────────────────────────────────────────
 
 def bidirectional(canvas):
+    """
+    Bidirectional BFS:
+      - Two BFS frontiers expand simultaneously:
+          Forward  : from START toward TARGET
+          Backward : from TARGET toward START
+      - Each step expands ONE node from each frontier alternately.
+      - Frontier sets are tracked SEPARATELY from explored sets so the
+        draw function can correctly colour waiting nodes as frontier.
+      - Search stops as soon as a node being expanded already exists in
+        the opposite explored set.
+    """
 
     # ── Separate frontier & explored sets for each direction ──────────
     # explored dict: node -> parent  (used for path reconstruction)
@@ -610,6 +646,7 @@ root.configure(bg="#FAFAFA")
 tk.Label(root, text="AI Pathfinder",
          font=("Arial", 16, "bold"), bg="#FAFAFA").pack(pady=(10, 4))
 
+# Canvas (extra 30 px for status bar)
 canvas = tk.Canvas(root,
                    width=COLS * CELL_SIZE,
                    height=ROWS * CELL_SIZE + 30,
