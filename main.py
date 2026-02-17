@@ -7,11 +7,9 @@ import heapq
 ROWS       = 10
 COLS       = 10
 CELL_SIZE  = 40
-STEP_DELAY = 0.25   # seconds between animation frames
+STEP_DELAY = 0.1   # seconds between animation frames
 
-# Diagonal move cost (√2) for UCS
 DIAG_COST = 1.414
-
 
 #  COLORS
 COLOR = {
@@ -23,15 +21,14 @@ COLOR = {
     "explored"    : "#2980B9",
     "path"        : "#8E44AD",
     # Bidirectional-specific
-    "fwd_frontier": "#AED6F1",   
-    "bwd_frontier": "#FADBD8",  
-    "fwd_explored": "#2980B9",   
-    "bwd_explored": "#C0392B",   
-    "meet"        : "#F39C12",   
+    "fwd_frontier": "#AED6F1",   # light blue  – forward  frontier
+    "bwd_frontier": "#FADBD8",   # light red   – backward frontier
+    "fwd_explored": "#2980B9",   # blue        – forward  explored
+    "bwd_explored": "#C0392B",   # dark red    – backward explored
+    "meet"        : "#F39C12",   # orange      – meeting node
 }
 
 #  STATIC GRID  (0 = empty, 1 = wall)
-
 grid = [
     [0,0,0,0,0,0,0,0,0,0],
     [0,0,1,0,0,0,0,0,0,0],
@@ -48,7 +45,6 @@ grid = [
 START  = (0, 0)
 TARGET = (9, 9)
 
-
 DIRECTIONS = [
     (-1,  0),   # Up
     ( 0,  1),   # Right
@@ -60,7 +56,6 @@ DIRECTIONS = [
 
 DIAG_PAIRS = {(1, 1), (-1, -1)}
 
-
 #  HELPERS
 
 def get_neighbors(row, col):
@@ -70,7 +65,6 @@ def get_neighbors(row, col):
         if 0 <= r < ROWS and 0 <= c < COLS and grid[r][c] == 0:
             cost = DIAG_COST if (dr, dc) in DIAG_PAIRS else 1.0
             yield r, c, cost
-
 
 #  DRAWING
 
@@ -82,7 +76,6 @@ def draw_grid(canvas, frontier=frozenset(), explored=frozenset(),
         for col in range(COLS):
             x1, y1 = col * CELL_SIZE, row * CELL_SIZE
             x2, y2 = x1 + CELL_SIZE, y1 + CELL_SIZE
-
             # Determine cell color (priority order matters)
             if (row, col) == START:
                 color = COLOR["start"]
@@ -101,7 +94,6 @@ def draw_grid(canvas, frontier=frozenset(), explored=frozenset(),
 
             canvas.create_rectangle(x1, y1, x2, y2,
                                     fill=color, outline="#AAAAAA", width=1)
-
             # Cell label
             if (row, col) == START:
                 label, fg = "S", "white"
@@ -128,9 +120,7 @@ def draw_grid(canvas, frontier=frozenset(), explored=frozenset(),
         font=("Arial", 10, "italic")
     )
 
-
 #  DRAWING – Bidirectional variant
-
 def draw_grid_bidir(canvas,
                     fwd_frontier=frozenset(), bwd_frontier=frozenset(),
                     fwd_explored=frozenset(), bwd_explored=frozenset(),
@@ -191,7 +181,6 @@ def draw_grid_bidir(canvas,
 # ──────────────────────────────────────────
 #  BFS
 # ──────────────────────────────────────────
-
 def bfs(canvas):
     queue    = deque([[START]])
     explored = set()
@@ -209,12 +198,12 @@ def bfs(canvas):
         draw_grid(canvas,
                   frontier=in_queue.copy(),
                   explored=explored,
-                  status=f"BFS - exploring {current}")
+                  status=f"BFS – exploring {current}")
         canvas.update()
         time.sleep(STEP_DELAY)
 
         if current == TARGET:
-            draw_grid(canvas, path=set(path), status="BFS - Path Found! ✓")
+            draw_grid(canvas, path=set(path), status="BFS – Path Found! ✓")
             canvas.update()
             return path
 
@@ -224,15 +213,13 @@ def bfs(canvas):
                 queue.append(path + [(r, c)])
                 in_queue.add((r, c))
 
-    draw_grid(canvas, status="BFS - No path found ✗")
+    draw_grid(canvas, status="BFS – No path found ✗")
     canvas.update()
     return None
-
 
 # ──────────────────────────────────────────
 #  DFS
 # ──────────────────────────────────────────
-
 def dfs(canvas):
     stack    = [[START]]
     explored = set()
@@ -269,11 +256,9 @@ def dfs(canvas):
     canvas.update()
     return None
 
-
 # ──────────────────────────────────────────
 #  DLS  (Depth-Limited Search)
 # ──────────────────────────────────────────
-
 def dls(canvas, limit):
     stack    = [([START], 0)]   # (path, depth)
     explored = set()
@@ -316,13 +301,10 @@ def dls(canvas, limit):
     canvas.update()
     return None
 
-
 # ──────────────────────────────────────────
 #  IDDFS  (Iterative Deepening DFS)
 # ──────────────────────────────────────────
-
 def iddfs(canvas):
-
     max_possible = ROWS * COLS   # absolute upper bound on any useful path length
 
     for limit in range(max_possible + 1):
@@ -377,16 +359,11 @@ def iddfs(canvas):
     canvas.update()
     return None
 
-
-
 # ──────────────────────────────────────────
 #  BIDIRECTIONAL SEARCH
 # ──────────────────────────────────────────
 
 def bidirectional(canvas):
-
-    # ── Separate frontier & explored sets for each direction ──────────
-    # explored dict: node -> parent  (used for path reconstruction)
     fwd_queue    = deque([START])
     bwd_queue    = deque([TARGET])
 
@@ -496,7 +473,6 @@ def bidirectional(canvas):
 # ──────────────────────────────────────────
 #  UCS
 # ──────────────────────────────────────────
-
 def ucs(canvas):
     counter   = 0                          # tie-breaker to avoid comparing lists
     pq        = [(0.0, counter, [START])]
@@ -542,8 +518,36 @@ def ucs(canvas):
 # ──────────────────────────────────────────
 #  RUN BUTTON CALLBACK
 # ──────────────────────────────────────────
-
 def run_algorithm():
+    global START, TARGET
+
+    # ── Parse start and target from user input ──
+    try:
+        sr, sc = int(start_row_var.get()), int(start_col_var.get())
+        tr, tc = int(target_row_var.get()), int(target_col_var.get())
+    except ValueError:
+        draw_grid(canvas, status="Error: row/col must be integers (0–9)")
+        canvas.update()
+        return
+
+    for label, r, c in [("Start", sr, sc), ("Target", tr, tc)]:
+        if not (0 <= r < ROWS and 0 <= c < COLS):
+            draw_grid(canvas, status=f"Error: {label} ({r},{c}) is out of bounds (0–{ROWS-1})")
+            canvas.update()
+            return
+        if grid[r][c] == 1:
+            draw_grid(canvas, status=f"Error: {label} ({r},{c}) is a wall")
+            canvas.update()
+            return
+
+    if (sr, sc) == (tr, tc):
+        draw_grid(canvas, status="Error: Start and Target must be different cells")
+        canvas.update()
+        return
+
+    START  = (sr, sc)
+    TARGET = (tr, tc)
+
     draw_grid(canvas, status="Starting…")
     canvas.update()
     run_btn.config(state=tk.DISABLED)
@@ -569,11 +573,9 @@ def run_algorithm():
     finally:
         run_btn.config(state=tk.NORMAL)
 
-
 # ──────────────────────────────────────────
 #  LEGEND
 # ──────────────────────────────────────────
-
 def build_legend(parent):
     frame = tk.Frame(parent, bg="#FAFAFA", bd=1, relief=tk.GROOVE)
     frame.pack(fill=tk.X, padx=10, pady=(0, 10))
@@ -596,11 +598,9 @@ def build_legend(parent):
         tk.Label(frame, text=label, bg="#FAFAFA",
                  font=("Arial", 9)).grid(row=0, column=i*2+1, padx=(0, 10))
 
-
 # ──────────────────────────────────────────
 #  MAIN WINDOW
 # ──────────────────────────────────────────
-
 root = tk.Tk()
 root.title("AI Pathfinder – BFS / DFS / UCS / DLS / IDDFS / Bidir")
 root.resizable(False, False)
@@ -610,6 +610,7 @@ root.configure(bg="#FAFAFA")
 tk.Label(root, text="AI Pathfinder",
          font=("Arial", 16, "bold"), bg="#FAFAFA").pack(pady=(10, 4))
 
+# Canvas (extra 30 px for status bar)
 canvas = tk.Canvas(root,
                    width=COLS * CELL_SIZE,
                    height=ROWS * CELL_SIZE + 30,
@@ -640,6 +641,32 @@ depth_entry.grid(row=0, column=1, padx=4)
 tk.Label(depth_frame, text="(used by DLS only)", bg="#FAFAFA",
          font=("Arial", 9), fg="#888888").grid(row=0, column=2, padx=6)
 
+# Start / Target input row
+st_frame = tk.Frame(root, bg="#FAFAFA")
+st_frame.pack(pady=(0, 4))
+
+tk.Label(st_frame, text="Start (row, col):", bg="#FAFAFA",
+         font=("Arial", 10)).grid(row=0, column=0, padx=(8,2))
+start_row_var = tk.StringVar(root); start_row_var.set("0")
+start_col_var = tk.StringVar(root); start_col_var.set("0")
+tk.Entry(st_frame, textvariable=start_row_var, width=3,
+         font=("Arial", 11), justify="center").grid(row=0, column=1, padx=2)
+tk.Label(st_frame, text=",", bg="#FAFAFA",
+         font=("Arial", 11)).grid(row=0, column=2)
+tk.Entry(st_frame, textvariable=start_col_var, width=3,
+         font=("Arial", 11), justify="center").grid(row=0, column=3, padx=2)
+
+tk.Label(st_frame, text="    Target (row, col):", bg="#FAFAFA",
+         font=("Arial", 10)).grid(row=0, column=4, padx=(16,2))
+target_row_var = tk.StringVar(root); target_row_var.set("9")
+target_col_var = tk.StringVar(root); target_col_var.set("9")
+tk.Entry(st_frame, textvariable=target_row_var, width=3,
+         font=("Arial", 11), justify="center").grid(row=0, column=5, padx=2)
+tk.Label(st_frame, text=",", bg="#FAFAFA",
+         font=("Arial", 11)).grid(row=0, column=6)
+tk.Entry(st_frame, textvariable=target_col_var, width=3,
+         font=("Arial", 11), justify="center").grid(row=0, column=7, padx=2)
+
 run_btn = tk.Button(ctrl, text="▶  Run Search",
                     command=run_algorithm,
                     bg="#2980B9", fg="white",
@@ -649,7 +676,6 @@ run_btn.grid(row=0, column=2, padx=10)
 
 # Legend
 build_legend(root)
-
 # Initial draw
 draw_grid(canvas, status="Select an algorithm and press Run Search")
 
